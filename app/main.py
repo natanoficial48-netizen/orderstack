@@ -2,13 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.database.connection import engine
+from app.database.connection import engine, SessionLocal
 from app.models.base import Base
 
 from app.models import restaurant
 from app.models import user
 from app.models import product
 from app.models import order
+from app.models.user import User
+from app.core.security import hash_password
 
 from app.routes import auth_routes
 from app.routes import product_routes
@@ -26,6 +28,26 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind=engine)
+
+# Cria admin automaticamente se nao existir
+def criar_admin():
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == "admin@orderstack.com").first()
+        if not existing:
+            admin = User(
+                name="Admin",
+                email="admin@orderstack.com",
+                password=hash_password("admin123"),
+                role="admin",
+                restaurant_id=None
+            )
+            db.add(admin)
+            db.commit()
+    finally:
+        db.close()
+
+criar_admin()
 
 app.include_router(auth_routes.router)
 app.include_router(product_routes.router)
