@@ -33,10 +33,6 @@ app.include_router(order_routes.router)
 app.include_router(restaurant_routes.router)
 app.include_router(dashboard_routes.router)
 
-@app.get("/frontend")
-def frontend():
-    return FileResponse("orderstack.html")
-
 @app.get("/")
 def home():
-    return {"message": "OrderStack API rodando!"}
+    return FileResponse("orderstack.html")
