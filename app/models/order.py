@@ -9,6 +9,8 @@ class Order(Base):
     status = Column(String, default="pendente")
     total = Column(Float, default=0.0)
     impresso = Column(Boolean, default=False)
+    table_id = Column(Integer, ForeignKey("tables.id"), nullable=True)
+    table_number = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     restaurant_id = Column(Integer, ForeignKey("restaurants.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
