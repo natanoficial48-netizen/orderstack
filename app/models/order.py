@@ -19,6 +19,7 @@ class OrderItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     quantity = Column(Integer)
     unit_price = Column(Float)
+    observacao = Column(String, nullable=True)
     order_id = Column(Integer, ForeignKey("orders.id"))
     product_id = Column(Integer, ForeignKey("products.id"))
     order = relationship("Order", back_populates="items")

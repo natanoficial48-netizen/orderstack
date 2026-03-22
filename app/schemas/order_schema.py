@@ -5,6 +5,7 @@ from datetime import datetime
 class OrderItemCreate(BaseModel):
     product_id: int
     quantity: int
+    observacao: Optional[str] = None
 
 class OrderCreate(BaseModel):
     restaurant_id: int
@@ -16,6 +17,7 @@ class OrderItemOut(BaseModel):
     product_id: int
     quantity: int
     unit_price: float
+    observacao: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -157,7 +157,7 @@ class CozinhaApp:
         self.lista._textbox.insert("end", f"  PEDIDO #{pedido['id']}  -  {hora}\n", "titulo")
         self.lista._textbox.insert("end", "=" * 36 + "\n", "sep")
         for item in pedido.get("items", []):
-            self.lista._textbox.insert("end", f"  {item['quantity']}x  Produto #{item['product_id']}  R$ {item['unit_price']:.2f}\n", "item")
+            self.lista._textbox.insert("end", f"  {item['quantity']}x  {item.get('name', 'Produto #'+str(item['product_id']))}  R$ {item['unit_price']:.2f}\n", "item")
         self.lista._textbox.insert("end", "-" * 36 + "\n", "sep")
         self.lista._textbox.insert("end", f"  TOTAL: R$ {pedido['total']:.2f}\n", "total")
         self.lista._textbox.insert("end", "\n")

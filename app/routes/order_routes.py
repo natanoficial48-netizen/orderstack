@@ -22,7 +22,13 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db), user=Depends(
         product = db.query(Product).filter(Product.id == item.product_id).first()
         if not product:
             raise HTTPException(status_code=404, detail=f"Produto {item.product_id} nao encontrado")
-        order_item = OrderItem(order_id=order.id, product_id=item.product_id, quantity=item.quantity, unit_price=product.price)
+        order_item = OrderItem(
+            order_id=order.id,
+            product_id=item.product_id,
+            quantity=item.quantity,
+            unit_price=product.price,
+            observacao=item.observacao
+        )
         db.add(order_item)
         total += product.price * item.quantity
     order.total = total
@@ -82,7 +88,8 @@ def pedidos_nao_impressos(restaurant_id: int, db: Session = Depends(get_db), use
                 "product_id": item.product_id,
                 "name": product.name if product else f"Produto #{item.product_id}",
                 "quantity": item.quantity,
-                "unit_price": item.unit_price
+                "unit_price": item.unit_price,
+                "observacao": item.observacao
             })
         result.append({
             "id": order.id,
