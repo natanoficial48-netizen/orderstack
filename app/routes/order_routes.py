@@ -73,4 +73,23 @@ def pedidos_nao_impressos(restaurant_id: int, db: Session = Depends(get_db), use
         Order.restaurant_id == restaurant_id,
         Order.impresso == False
     ).all()
-    return orders
+    result = []
+    for order in orders:
+        items = []
+        for item in order.items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            items.append({
+                "product_id": item.product_id,
+                "name": product.name if product else f"Produto #{item.product_id}",
+                "quantity": item.quantity,
+                "unit_price": item.unit_price
+            })
+        result.append({
+            "id": order.id,
+            "status": order.status,
+            "total": order.total,
+            "user_id": order.user_id,
+            "created_at": order.created_at.isoformat(),
+            "items": items
+        })
+    return result
