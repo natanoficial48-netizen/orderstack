@@ -55,3 +55,22 @@ def get_order(order_id: int, db: Session = Depends(get_db), user=Depends(get_cur
     if user.get("role") != "admin" and user.get("restaurant_id") != order.restaurant_id:
         raise HTTPException(status_code=403, detail="Acesso negado")
     return order
+
+@router.patch("/{order_id}/impresso")
+def marcar_impresso(order_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido nao encontrado")
+    order.impresso = True
+    db.commit()
+    return {"message": "Pedido marcado como impresso"}
+
+@router.get("/restaurant/{restaurant_id}/nao-impressos")
+def pedidos_nao_impressos(restaurant_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    if user.get("role") != "admin" and user.get("restaurant_id") != restaurant_id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    orders = db.query(Order).filter(
+        Order.restaurant_id == restaurant_id,
+        Order.impresso == False
+    ).all()
+    return orders
