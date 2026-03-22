@@ -322,7 +322,10 @@
   </div>
 
   <div id="page-pedido" class="page">
-    <div class="ph"><div><div class="pt">Fazer Pedido</div><div class="ps">Toque no produto para adicionar</div></div></div>
+    <div class="ph">
+      <div><div class="pt">Fazer Pedido</div><div class="ps">Toque no produto para adicionar</div></div>
+      <button class="btn-add" style="background:var(--card);border:1px solid var(--border);color:var(--text2);" onclick="abrirSeletorMesa()" id="btn-mesa">Mesa: Nenhuma</button>
+    </div>
     <div class="garcom-layout">
       <div>
         <div class="slabel">Cardapio</div>
@@ -365,6 +368,14 @@
       <button class="btn-add" onclick="openGarcomModal()">+ Novo Garcom</button>
     </div>
     <div class="tg" id="tg"></div>
+  </div>
+
+  <div id="page-mesas" class="page">
+    <div class="ph">
+      <div><div class="pt">Mesas</div><div class="ps">Gerencie as mesas do restaurante</div></div>
+      <button class="btn-add" onclick="openMesaModal()">+ Nova Mesa</button>
+    </div>
+    <div class="cg" id="mesas-grid"></div>
   </div>
 
   <div id="page-relatorio" class="page">
@@ -416,7 +427,27 @@
   </div>
 </div>
 
-<div class="overlay" id="m-garcom">
+<div class="overlay" id="m-mesa">
+  <div class="modal">
+    <div class="modal-h">Nova <em>Mesa</em></div>
+    <div class="field"><label>Numero da Mesa</label><input type="text" id="mm-number" placeholder="Ex: 1, 2, Varanda..."></div>
+    <div class="field"><label>Nome (opcional)</label><input type="text" id="mm-name" placeholder="Ex: Mesa VIP, Terraço..."></div>
+    <div class="mfoot">
+      <button class="btn-mcancel" onclick="closeModal('m-mesa')">Cancelar</button>
+      <button class="btn-msave" onclick="salvarMesa()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-select-mesa">
+  <div class="modal">
+    <div class="modal-h">Selecionar <em>Mesa</em></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-bottom:20px;" id="mesa-selector-grid"></div>
+    <div class="mfoot">
+      <button class="btn-mcancel" onclick="closeModal('m-select-mesa')">Cancelar</button>
+    </div>
+  </div>
+</div>
   <div class="modal">
     <div class="modal-h">Novo <em>Garcom</em></div>
     <div class="field"><label>Nome</label><input type="text" id="mg-name" placeholder="Nome do garcom"></div>
@@ -433,7 +464,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API = "https://orderstack.onrender.com";
+const API = "http://127.0.0.1:8000";
 let token = localStorage.getItem("os_token")||null;
 let me = JSON.parse(localStorage.getItem("os_user")||"null");
 let products=[], cart=[], editProdId=null, cozTimer=null, meusPedTimer=null;
@@ -459,6 +490,7 @@ function showPage(pid, btn) {
   if(pid==='cozinha') carregarPedidos();
   if(pid==='cardapio') carregarCardapio();
   if(pid==='equipe') carregarEquipe();
+  if(pid==='mesas') carregarMesas();
   if(pid==='relatorio') carregarRelatorio();
   if(pid==='restaurante') carregarRestInfo();
   if(pid==='admin') carregarAdmin();
@@ -525,6 +557,7 @@ function entrarApp() {
     const b1=addNav(nav,'cozinha','Cozinha');
     addNav(nav,'cardapio','Cardapio');
     addNav(nav,'equipe','Equipe');
+    addNav(nav,'mesas','Mesas');
     addNav(nav,'relatorio','Relatorio');
     addNav(nav,'restaurante','Restaurante');
     carregarProdutos(); iniciarCozinha();
@@ -569,7 +602,7 @@ function renderGProds() {
 function addCart(id) {
   const p=products.find(x=>x.id===id); if(!p) return;
   const ex=cart.find(x=>x.pid===id);
-  if(ex) ex.qty++; else cart.push({pid:id,name:p.name,price:p.price,qty:1});
+  if(ex) ex.qty++; else cart.push({pid:id,name:p.name,price:p.price,qty:1,obs:''});
   renderCart(); showToast(p.name+' adicionado');
 }
 
@@ -577,6 +610,11 @@ function changeQty(id,d) {
   const item=cart.find(x=>x.pid===id); if(!item) return;
   item.qty+=d; if(item.qty<=0) cart=cart.filter(x=>x.pid!==id);
   renderCart();
+}
+
+function updateObs(id, val) {
+  const item=cart.find(x=>x.pid===id); if(!item) return;
+  item.obs=val;
 }
 
 function renderCart() {
@@ -587,7 +625,12 @@ function renderCart() {
   let tot=0;
   body.innerHTML=cart.map(item=>{
     const sub=item.price*item.qty; tot+=sub;
-    return '<div class="crow"><div class="crow-name">'+item.name+'</div><div class="qc"><button class="qb" onclick="changeQty('+item.pid+',-1)">-</button><span class="qn">'+item.qty+'</span><button class="qb" onclick="changeQty('+item.pid+',1)">+</button></div><div class="crow-val">R$ '+sub.toFixed(2)+'</div></div>';
+    return '<div class="crow" style="flex-wrap:wrap;gap:4px;">'
+      +'<div class="crow-name">'+item.name+'</div>'
+      +'<div class="qc"><button class="qb" onclick="changeQty('+item.pid+',-1)">-</button><span class="qn">'+item.qty+'</span><button class="qb" onclick="changeQty('+item.pid+',1)">+</button></div>'
+      +'<div class="crow-val">R$ '+sub.toFixed(2)+'</div>'
+      +'<input placeholder="Obs: sem cebola, bem passado..." value="'+(item.obs||'')+'" onchange="updateObs('+item.pid+',this.value)" style="width:100%;background:#111;border:1px solid #2a2a2a;color:#888;padding:5px 8px;border-radius:5px;font-size:0.74rem;font-family:inherit;outline:none;margin-top:4px;">'
+      +'</div>';
   }).join('');
   totv.textContent='R$ '+tot.toFixed(2); btn.disabled=false;
 }
@@ -596,9 +639,14 @@ async function enviar() {
   if(!cart.length) return;
   const btn=document.getElementById('btn-send'); btn.disabled=true; btn.textContent='ENVIANDO...';
   try{
-    const res=await api('/orders/',{method:'POST',body:JSON.stringify({restaurant_id:me.restaurant_id,user_id:me.id,items:cart.map(i=>({product_id:i.pid,quantity:i.qty}))})});
+    const res=await api('/orders/',{method:'POST',body:JSON.stringify({restaurant_id:me.restaurant_id,user_id:me.id,table_id:mesaSelecionada?mesaSelecionada.id:null,table_number:mesaSelecionada?mesaSelecionada.number:null,items:cart.map(i=>({product_id:i.pid,quantity:i.qty,observacao:i.obs||null}))})});
     if(!res.ok) throw new Error();
-    cart=[]; renderCart(); showToast('Pedido enviado para a cozinha');
+    cart=[]; renderCart();
+    mesaSelecionada=null;
+    document.getElementById('btn-mesa').textContent='Mesa: Nenhuma';
+    document.getElementById('btn-mesa').style.borderColor='';
+    document.getElementById('btn-mesa').style.color='';
+    showToast('Pedido enviado para a cozinha');
   }catch{showToast('Erro ao enviar pedido',true);}
   finally{btn.textContent='ENVIAR PEDIDO';}
 }
@@ -624,12 +672,12 @@ function renderPedidos(list) {
   grid.innerHTML=list.map(p=>{
     const sc=p.status.replace(' ','-');
     const hora=new Date(p.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    const itens=p.items.map(i=>{const pr=products.find(x=>x.id===i.product_id);return '<li><span><span class="oqty">'+i.quantity+'x</span> '+(pr?pr.name:'Prod #'+i.product_id)+'</span><span>R$ '+(i.unit_price*i.quantity).toFixed(2)+'</span></li>';}).join('');
+    const itens=p.items.map(i=>{const pr=products.find(x=>x.id===i.product_id);const obs=i.observacao?'<div style="font-size:0.72rem;color:var(--yellow);padding-left:20px">obs: '+i.observacao+'</div>':'';return '<li style="flex-direction:column;align-items:flex-start;gap:2px"><div style="display:flex;justify-content:space-between;width:100%"><span><span class="oqty">'+i.quantity+'x</span> '+(pr?pr.name:'Prod #'+i.product_id)+'</span><span>R$ '+(i.unit_price*i.quantity).toFixed(2)+'</span></div>'+obs+'</li>';}).join('');
     let btn='';
     if(p.status==='pendente') btn='<button class="ob ob-p" onclick="mudarStatus('+p.id+',\'em preparo\')">Em Preparo</button>';
     else if(p.status==='em preparo') btn='<button class="ob ob-r" onclick="mudarStatus('+p.id+',\'pronto\')">Pronto</button>';
     else if(p.status==='pronto') btn='<button class="ob ob-e" onclick="mudarStatus('+p.id+',\'entregue\')">Entregue</button>';
-    return '<div class="ocard '+sc+'"><div class="otop"><div><div class="onum">Pedido #'+p.id+'</div><div class="ometa">'+hora+' - User #'+p.user_id+'</div></div><span class="stag '+sc+'">'+p.status+'</span></div><ul class="oitems">'+itens+'</ul><div class="ototl">R$ '+p.total.toFixed(2)+'</div><div class="oacts">'+btn+'</div></div>';
+    return '<div class="ocard '+sc+'"><div class="otop"><div><div class="onum">Pedido #'+p.id+'</div><div class="ometa">'+hora+' - '+(p.table_number?'Mesa '+p.table_number:' User #'+p.user_id)+'</div></div><span class="stag '+sc+'">'+p.status+'</span></div><ul class="oitems">'+itens+'</ul><div class="ototl">R$ '+p.total.toFixed(2)+'</div><div class="oacts">'+btn+'</div></div>';
   }).join('');
 }
 
@@ -779,6 +827,65 @@ async function deleteRest(id) {
   if(!confirm('Deletar esta hamburgueria? Esta acao nao pode ser desfeita.')) return;
   await api('/restaurants/'+id,{method:'DELETE'});
   showToast('Hamburgueria removida'); carregarAdmin();
+}
+
+// MESAS (DONO)
+let mesas = [];
+
+async function carregarMesas() {
+  try{
+    const res=await api('/tables/restaurant/'+me.restaurant_id);
+    mesas=await res.json();
+    const grid=document.getElementById('mesas-grid');
+    if(!mesas.length){grid.innerHTML='<div style="color:var(--text2);font-size:.85rem">Nenhuma mesa. Clique em "+ Nova Mesa".</div>';return;}
+    grid.innerHTML=mesas.map(m=>'<div class="ccard"><div class="ccard-name">Mesa '+m.number+'</div><div class="ccard-desc">'+(m.name||'')+'</div><div class="ccard-acts"><button class="btn-rm" onclick="deletarMesa('+m.id+')">Remover</button></div></div>').join('');
+  }catch(e){console.error(e);}
+}
+
+function openMesaModal(){
+  document.getElementById('mm-number').value='';
+  document.getElementById('mm-name').value='';
+  document.getElementById('m-mesa').classList.add('open');
+}
+
+async function salvarMesa(){
+  const number=document.getElementById('mm-number').value.trim();
+  const name=document.getElementById('mm-name').value.trim();
+  if(!number){showToast('Informe o numero da mesa',true);return;}
+  try{
+    await api('/tables/',{method:'POST',body:JSON.stringify({number,name:name||null})});
+    showToast('Mesa cadastrada');
+    closeModal('m-mesa'); carregarMesas();
+  }catch{showToast('Erro ao salvar mesa',true);}
+}
+
+async function deletarMesa(id){
+  if(!confirm('Remover esta mesa?')) return;
+  await api('/tables/'+id,{method:'DELETE'});
+  showToast('Mesa removida'); carregarMesas();
+}
+
+// SELECIONAR MESA (GARCOM)
+let mesaSelecionada = null;
+
+async function abrirSeletorMesa(){
+  try{
+    const res=await api('/tables/restaurant/'+me.restaurant_id);
+    mesas=await res.json();
+    const grid=document.getElementById('mesa-selector-grid');
+    if(!mesas.length){showToast('Nenhuma mesa cadastrada',true);return;}
+    grid.innerHTML=mesas.map(m=>'<button onclick="selecionarMesa('+m.id+',\''+m.number+'\')" style="background:'+(mesaSelecionada&&mesaSelecionada.id===m.id?'var(--accent)':'var(--card)')+';border:1px solid '+(mesaSelecionada&&mesaSelecionada.id===m.id?'var(--accent)':'var(--border)')+';color:'+(mesaSelecionada&&mesaSelecionada.id===m.id?'#fff':'var(--text)')+';padding:12px;border-radius:8px;cursor:pointer;font-family:Syne,sans-serif;font-weight:700;font-size:1rem;">'+m.number+'</button>').join('');
+    document.getElementById('m-select-mesa').classList.add('open');
+  }catch(e){showToast('Erro ao carregar mesas',true);}
+}
+
+function selecionarMesa(id, number){
+  mesaSelecionada={id,number};
+  document.getElementById('btn-mesa').textContent='Mesa: '+number;
+  document.getElementById('btn-mesa').style.borderColor='var(--accent)';
+  document.getElementById('btn-mesa').style.color='var(--accent)';
+  closeModal('m-select-mesa');
+  showToast('Mesa '+number+' selecionada');
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
