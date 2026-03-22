@@ -32,6 +32,7 @@ class OrderOut(BaseModel):
     user_id: int
     table_id: Optional[int] = None
     table_number: Optional[str] = None
+    payment_method: Optional[str] = None
     items: List[OrderItemOut]
     class Config:
         from_attributes = True

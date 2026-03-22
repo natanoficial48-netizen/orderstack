@@ -365,7 +365,7 @@
       <div>
         <div class="section-title">Historico de pedidos</div>
         <div style="background:var(--card);border:1px solid var(--border);border-radius:11px;overflow:hidden;">
-          <table class="hist-table"><thead><tr><th>#</th><th>Mesa</th><th>Status</th><th>Total</th><th>Hora</th></tr></thead><tbody id="hist-tbody"></tbody></table>
+          <table class="hist-table"><thead><tr><th>#</th><th>Mesa</th><th>Pagamento</th><th>Status</th><th>Total</th><th>Hora</th></tr></thead><tbody id="hist-tbody"></tbody></table>
         </div>
       </div>
     </div>
@@ -426,6 +426,20 @@
     <div class="modal-h">Selecionar <em>Mesa</em></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-bottom:20px;" id="mesa-selector-grid"></div>
     <div class="mfoot"><button class="btn-mcancel" onclick="closeModal('m-select-mesa')">Cancelar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="m-pagamento">
+  <div class="modal">
+    <div class="modal-h">Forma de <em>Pagamento</em></div>
+    <div id="pag-total" style="font-family:'Syne',sans-serif;font-weight:800;font-size:2rem;color:var(--green);text-align:center;margin-bottom:20px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+      <button onclick="finalizarPedido('dinheiro')" style="background:var(--subtle);border:2px solid var(--border);color:var(--text);padding:16px;border-radius:10px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;transition:all 0.18s;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">💵 Dinheiro</button>
+      <button onclick="finalizarPedido('pix')" style="background:var(--subtle);border:2px solid var(--border);color:var(--text);padding:16px;border-radius:10px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;transition:all 0.18s;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">📱 Pix</button>
+      <button onclick="finalizarPedido('credito')" style="background:var(--subtle);border:2px solid var(--border);color:var(--text);padding:16px;border-radius:10px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;transition:all 0.18s;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">💳 Credito</button>
+      <button onclick="finalizarPedido('debito')" style="background:var(--subtle);border:2px solid var(--border);color:var(--text);padding:16px;border-radius:10px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;transition:all 0.18s;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">💳 Debito</button>
+    </div>
+    <div class="mfoot"><button class="btn-mcancel" onclick="closeModal('m-pagamento')">Cancelar</button></div>
   </div>
 </div>
 
@@ -623,7 +637,7 @@ function renderPedidos(list){
     let btn='';
     if(p.status==='pendente') btn='<button class="ob ob-p" onclick="mudarStatus('+p.id+',\'em preparo\')">Em Preparo</button>';
     else if(p.status==='em preparo') btn='<button class="ob ob-r" onclick="mudarStatus('+p.id+',\'pronto\')">Pronto</button>';
-    else if(p.status==='pronto') btn='<button class="ob ob-e" onclick="mudarStatus('+p.id+',\'entregue\')">Entregue</button>';
+    else if(p.status==='pronto') btn='<button class="ob ob-e" onclick="abrirPagamento('+p.id+','+p.total+')">Finalizar</button>';
     return '<div class="ocard '+sc+'"><div class="otop"><div><div class="onum">Pedido #'+p.id+'</div><div class="ometa">'+hora+' - '+(p.table_number?'Mesa '+p.table_number:'User #'+p.user_id)+'</div></div><span class="stag '+sc+'">'+p.status+'</span></div><ul class="oitems">'+itens+'</ul><div class="ototl">R$ '+p.total.toFixed(2)+'</div><div class="oacts">'+btn+'</div></div>';
   }).join('');
 }
@@ -780,10 +794,17 @@ async function carregarCaixa(){
     document.getElementById('caixa-data').textContent='Hoje - '+caixa.data;
     document.getElementById('caixa-stats').innerHTML=
       '<div class="dash-card"><div class="dash-val" style="color:var(--accent)">'+caixa.total_pedidos+'</div><div class="dash-lbl">Pedidos Hoje</div></div>'+
-      '<div class="dash-card"><div class="dash-val" style="color:var(--green)">'+caixa.entregues+'</div><div class="dash-lbl">Entregues</div></div>'+
+      '<div class="dash-card"><div class="dash-val" style="color:var(--green)">'+caixa.entregues+'</div><div class="dash-lbl">Finalizados</div></div>'+
       '<div class="dash-card"><div class="dash-val" style="color:var(--yellow)">'+caixa.em_andamento+'</div><div class="dash-lbl">Em Andamento</div></div>'+
       '<div class="dash-card"><div class="dash-val" style="color:var(--green)">R$ '+caixa.faturamento.toFixed(2)+'</div><div class="dash-lbl">Faturamento Hoje</div></div>'+
       '<div class="dash-card"><div class="dash-val" style="color:var(--blue)">R$ '+caixa.ticket_medio.toFixed(2)+'</div><div class="dash-lbl">Ticket Medio</div></div>';
+
+    // Breakdown pagamentos
+    const pags = caixa.pagamentos || {};
+    const pagHtml = Object.entries(pags).map(([k,v])=>'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.88rem;"><span style="text-transform:capitalize">'+k+'</span><span style="color:var(--green);font-weight:600">R$ '+v.toFixed(2)+'</span></div>').join('');
+    if(pagHtml){
+      document.getElementById('caixa-stats').innerHTML+='<div class="dash-card" style="grid-column:1/-1"><div style="font-family:Syne,sans-serif;font-weight:700;font-size:0.9rem;margin-bottom:12px;">Formas de Pagamento</div>'+pagHtml+'</div>';
+    }
     const hoje=new Date().toLocaleDateString('pt-BR');
     const pedidosHoje=hist.filter(o=>{const d=new Date(o.created_at);return d.toLocaleDateString('pt-BR')===hoje;});
     document.getElementById('caixa-tbody').innerHTML=pedidosHoje.length?pedidosHoje.map(o=>'<tr><td><span class="idbadge">#'+o.id+'</span></td><td>'+(o.table_number?'Mesa '+o.table_number:'-')+'</td><td><span class="chip '+o.status+'">'+o.status+'</span></td><td style="color:var(--green);font-weight:600">R$ '+o.total.toFixed(2)+'</td><td style="color:var(--text2)">'+new Date(o.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</td></tr>').join(''):'<tr><td colspan="5" style="color:var(--text2);padding:20px">Nenhum pedido hoje.</td></tr>';
@@ -825,7 +846,7 @@ async function carregarRelatorio(){
     ]);
     document.getElementById('rel-stats').innerHTML='<div class="scard"><div class="scard-val" style="color:var(--accent)">'+sales.total_orders+'</div><div class="scard-lbl">Total Pedidos</div></div><div class="scard"><div class="scard-val" style="color:var(--green)">'+sales.total_delivered+'</div><div class="scard-lbl">Entregues</div></div><div class="scard"><div class="scard-val" style="color:var(--yellow)">R$ '+sales.total_revenue.toFixed(2)+'</div><div class="scard-lbl">Faturamento Total</div></div><div class="scard"><div class="scard-val" style="color:var(--blue)">R$ '+sales.average_ticket.toFixed(2)+'</div><div class="scard-lbl">Ticket Medio</div></div>';
     document.getElementById('top-prods').innerHTML=top.length?top.map((p,i)=>'<div class="tp-row"><div class="tp-rank">'+(i+1)+'</div><div class="tp-info"><div class="tp-name">'+p.name+'</div><div class="tp-qty">'+p.total_qty+' vendidos</div></div><div class="tp-rev">R$ '+p.total_revenue.toFixed(2)+'</div></div>').join(''):'<div style="color:var(--text2);font-size:.83rem">Nenhuma venda ainda.</div>';
-    document.getElementById('hist-tbody').innerHTML=hist.length?hist.map(o=>'<tr><td><span class="idbadge">#'+o.id+'</span></td><td>'+(o.table_number?'Mesa '+o.table_number:'-')+'</td><td><span class="chip '+o.status+'">'+o.status+'</span></td><td style="color:var(--green);font-weight:600">R$ '+o.total.toFixed(2)+'</td><td style="color:var(--text2)">'+new Date(o.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</td></tr>').join(''):'<tr><td colspan="5" style="color:var(--text2);padding:20px">Nenhum pedido.</td></tr>';
+    document.getElementById('hist-tbody').innerHTML=hist.length?hist.map(o=>'<tr><td><span class="idbadge">#'+o.id+'</span></td><td>'+(o.table_number?'Mesa '+o.table_number:'-')+'</td><td style="text-transform:capitalize;color:var(--text2)">'+(o.payment_method||'-')+'</td><td><span class="chip '+o.status+'">'+o.status+'</span></td><td style="color:var(--green);font-weight:600">R$ '+o.total.toFixed(2)+'</td><td style="color:var(--text2)">'+new Date(o.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</td></tr>').join(''):'<tr><td colspan="6" style="color:var(--text2);padding:20px">Nenhum pedido.</td></tr>';
   }catch(e){console.error(e);}
 }
 
@@ -856,6 +877,30 @@ async function deleteRest(id){
   if(!confirm('Deletar esta hamburgueria?')) return;
   await api('/restaurants/'+id,{method:'DELETE'});
   showToast('Hamburgueria removida'); carregarAdmin();
+}
+
+let pedidoParaPagar = null;
+
+function abrirPagamento(orderId, total) {
+  pedidoParaPagar = orderId;
+  document.getElementById('pag-total').textContent = 'R$ ' + total.toFixed(2);
+  document.getElementById('m-pagamento').classList.add('open');
+}
+
+async function finalizarPedido(paymentMethod) {
+  if (!pedidoParaPagar) return;
+  try {
+    await api('/orders/' + pedidoParaPagar + '/finalizar', {
+      method: 'PATCH',
+      body: JSON.stringify({ payment_method: paymentMethod })
+    });
+    closeModal('m-pagamento');
+    pedidoParaPagar = null;
+    showToast('Pedido finalizado - ' + paymentMethod);
+    carregarPedidos();
+  } catch {
+    showToast('Erro ao finalizar pedido', true);
+  }
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}

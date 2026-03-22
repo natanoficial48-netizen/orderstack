@@ -11,6 +11,7 @@ class Order(Base):
     impresso = Column(Boolean, default=False)
     table_id = Column(Integer, nullable=True)
     table_number = Column(String, nullable=True)
+    payment_method = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     restaurant_id = Column(Integer, ForeignKey("restaurants.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
